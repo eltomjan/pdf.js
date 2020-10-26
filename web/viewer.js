@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @licstart The following is the entire license notice for the
  * Javascript code in this page
  *
@@ -11379,6 +11379,7 @@ class TextLayerBuilder {
     });
     this.textLayerRenderTask.promise.then(() => {
       this.textLayerDiv.appendChild(textLayerFrag);
+      this.reorder(this.textLayerDiv);
 
       this._finishRendering();
 
@@ -11393,6 +11394,180 @@ class TextLayerBuilder {
       };
 
       this.eventBus._on("updatetextlayermatches", this._onUpdateTextLayerMatches);
+    }
+  }
+
+  reorder(_src) {
+    const src = _src.children;
+    let els = [];
+    const elDest = [];
+    for (let j = 0; j < src.length; j++) {
+        const i = src[j];
+        if (i.className === 'endOfContent') continue;
+        els.push({ x: parseFloat(i.style.left), y: parseFloat(i.style.top), w: parseFloat(i.style.width), h: i.offsetHeight, text: i.innerText, ff: i.style.fontFamily, fs: i.style.fontSize, cssText: i.style.cssText });
+    }
+    els.sort(boxCmp);
+    let elMin = els[0];
+    for (let i = 1; i < els.length; i++) {
+         if (elMin.x + elMin.w + 1 >= els[i].x &&
+          Math.abs(elMin.y - els[i].y) < 1 &&
+          elMin.h === els[i].h &&
+          elMin.ff === els[i].ff &&
+          elMin.fs === els[i].fs) {
+            elMin.text += els[i].text;
+            elMin.w = els[i].x + els[i].w - elMin.x;
+            if (elDest[elDest.length - 1] !== elMin) elDest.push(elMin);
+            continue;
+        }
+        if (elDest[elDest.length - 1] !== elMin) elDest.push(elMin);
+        elMin = els[i];
+    }
+    if (elDest[elDest.length - 1] !== elMin) elDest.push(elMin);
+    els = _src;
+    while (els.lastChild) els.removeChild(els.lastChild);
+    const elList = [];
+    if (window.elLists === undefined) window.elLists = {};
+    const uqIdx = { x: [], y: [] };
+    for (let i = 0; i < elDest.length; i++) {
+        const o = document.createElement('INPUT');
+        o.title = elDest[i].text;
+        o.readOnly = true;
+        o.setAttribute('style', elDest[i].cssText + 'width:' + elDest[i].w + 'px;position:absolute;');
+        els.appendChild(o);
+        elList.push([elDest[i].x, elDest[i].x + elDest[i].w, o, elDest[i].y, elDest[i].y + elDest[i].h, elDest[i].text]);
+        if (uqIdx.x.indexOf(elDest[i].x) < 0) uqIdx.x.push(elDest[i].x);
+        if (uqIdx.y.indexOf(elDest[i].y) < 0) uqIdx.y.push(elDest[i].y);
+    }
+    uqIdx.x.sort(num);
+    uqIdx.y.sort(num);
+    _src.ondblclick = XL;
+    _src.onkeydown = moveEl;
+    src[0].focus();
+    elLists[_src.parentElement.getAttribute("data-page-Number")] = elList;
+    function num (a, b) { return a - b; }
+    function boxCmp (a, b) {
+        if (Math.abs(a.y - b.y) <= 1) {
+            if (Math.abs(a.x - b.x) <= 1) return 0;
+            else return a.x - b.x;
+        } else return a.y - b.y;
+    }
+    var me;
+    function propagate(el, key, page, dir) {
+      let dest;
+      switch(dir) {
+        case 0:
+          dest = elLists[page][0];
+          dest[2].focus();
+          return;
+        case -1:
+          dest = elLists[page];
+          dest = dest[dest.length-1];
+          dest[2].focus();
+          return;
+      }
+      dest.target.scrollIntoView();
+      moveEl(dest);
+    }
+    function moveEl (event) {
+      event.stopPropagation();
+      const el = event.target;
+      let page = parseInt(event.target.parentElement.parentElement.getAttribute("data-page-Number"));
+      let elList = elLists[page];
+      if (event.target.tagName !== 'INPUT') return;
+      let i = 0;
+      while (i < elList.length && elList[i][2] !== el) i++;
+      me = elList[i];
+      const flw = [];
+      if (event.key.indexOf('PageDown') > -1) {
+          if (++i < elList.length) elList[i][2].focus();
+          else {
+            page++;
+            me[2].scrollIntoView();
+            if (elLists[page]) return propagate(0, event.key, page, 0);
+          }
+          return;
+      } else if (event.key.indexOf('PageUp') > -1) {
+          if (i) {
+            i--;
+            elList[i][2].focus();
+          } else {
+            if (page--) {
+              propagate(0, event.key, page, -1);
+              let fix = elLists[page];
+              fix[fix.length-1][2].scrollIntoView();
+            }
+          }
+          return;
+      } else if (event.key.indexOf('Left') > -1) {
+          while (i--) {
+              if (elList[i][0] < me[0] && me[3] <= elList[i][4]) flw.push(elList[i]);
+              else break;
+          }
+          flw.sort(distanceX);
+      } else if (event.key.indexOf('Right') > -1) {
+          while (++i < elList.length) {
+              if (elList[i][0] > me[0] && me[4] >= elList[i][3]) flw.push(elList[i]);
+              else break;
+          }
+          flw.sort(distanceX);
+      } else if (event.key.indexOf('Down') > -1) {
+          while (++i < elList.length) if (elList[i][3] > me[3]) flw.push(elList[i]);
+          flw.sort(distance);
+          if (!flw.length && elLists[++page]) return propagate(0, event.key, page, 0);
+      } else if (event.key.indexOf('Up') > -1) {
+          while (i--) if (elList[i][3] < me[3]) flw.push(elList[i]);
+          flw.sort(distance);
+          if (!flw.length && page--) return propagate(0, event.key, page, -1);
+    } else return;
+      if (!flw.length) return;
+      flw[0][2].focus();
+    }
+    function distance (a, b) {
+        const ac0 = Math.abs(me[0] - a[0]) + Math.abs(me[3] - a[3]);
+        const ac1 = Math.abs(me[1] - a[1]) + Math.abs(me[4] - a[4]);
+        const bc0 = Math.abs(me[0] - b[0]) + Math.abs(me[3] - b[3]);
+        const bc1 = Math.abs(me[1] - b[1]) + Math.abs(me[4] - b[4]);
+        return Math.min(ac0, ac1) - Math.min(bc0, bc1);
+    }
+    function distanceX (a, b) {
+        const ac = Math.abs(me[0] - a[0]);
+        const bc = Math.abs(me[0] - b[0]);
+        return ac - bc;
+    }
+    function XL () {
+        let xl = elList[0][5];
+        let xOld = elList[0];
+        const lastXs = [elList];
+        for (let i = 1; i < elList.length; i++) {
+            if (elList[i][0] <= xOld[1] ||
+                elList[i][3] > xOld[4]) {
+                xl += '\n';
+                while (elList[i][0][0] <= lastXs[lastXs.length - 1]) lastXs.pop();
+                while (lastXs.length) {
+                    const e = lastXs.pop();
+                    if (e[1] < elList[i][0]) xl += '\t';
+                }
+                xl += elList[i][5];
+                lastXs.push(elList[i]);
+            } else {
+                xl += '\t' + elList[i][5];
+                lastXs.push(elList[i]);
+            }
+            xOld = elList[i];
+        }
+        let ta;
+        if (document.getElementsByTagName('TEXTAREA').length === 2) ta = document.getElementsByTagName('TEXTAREA')[1];
+        else {
+            ta = document.createElement('TEXTAREA');
+            ta.setAttribute('style', 'width:100%;height:100%;position:absolute;left:0px;top:0px');
+            ta.onblur = removeMe;
+            document.body.appendChild(ta);
+        }
+        ta.value = xl;
+        ta.focus();
+    }
+    function removeMe () {
+        document.body.removeChild(event.target);
     }
   }
 
@@ -13928,7 +14103,7 @@ _app.PDFPrintServiceFactory.instance = {
 /************************************************************************/
 /******/ 	// The module cache
 /******/ 	var __webpack_module_cache__ = {};
-/******/ 	
+/******/
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
@@ -13941,14 +14116,14 @@ _app.PDFPrintServiceFactory.instance = {
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
-/******/ 	
+/******/
 /******/ 		// Execute the module function
 /******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
-/******/ 	
+/******/
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-/******/ 	
+/******/
 /************************************************************************/
 /******/ 	// startup
 /******/ 	// Load entry module

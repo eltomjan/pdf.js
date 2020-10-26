@@ -4054,3 +4054,5 @@ html[dir="rtl"] #documentPropertiesOverlay .row > * {
     display: none;
   }
 }
+
+input{padding:0px;border:1px solid #e0e0e0;}input:focus{background-color:red;}
