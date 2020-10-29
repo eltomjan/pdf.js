@@ -11442,8 +11442,14 @@ class TextLayerBuilder {
     uqIdx.y.sort(num);
     _src.ondblclick = XL;
     _src.onkeydown = moveEl;
-    src[0].focus();
-    elLists[_src.parentElement.getAttribute("data-page-Number")] = elList;
+    let page = _src.parentElement.getAttribute("data-page-Number");
+    let lastPage = window.focusedPage;
+    window.focusedPage = lastPage || page;
+    elLists[page] = elList;
+    if (window.focusedPage >= page) {
+      lastPage = page;
+      elLists[page][0][2].focus();
+    }
     function num (a, b) { return a - b; }
     function boxCmp (a, b) {
         if (Math.abs(a.y - b.y) <= 1) {

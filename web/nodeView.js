@@ -7,7 +7,7 @@ datauri(pdf, (err, content, meta) => {
     if (err) {
         throw err;
     }
-    const viewerJSpath = path.join(__dirname, './viewer.js');
+    const viewerJSpath = path.join(__dirname, './viewer');
     let wp = fs.readFileSync(viewerJSpath, 'utf-8');
     const pdfName = 'compressed.tracemonkey-pldi-09.pdf';
     const srcPos = [wp.indexOf(pdfName)];
@@ -17,7 +17,7 @@ datauri(pdf, (err, content, meta) => {
     wp = wp.substr(0, srcPos[0]) + content +
     wp.substr(srcPos[1], HOSTED_VIEWER_ORIGINS - srcPos[1]) + ', "file://"' +
     wp.substr(HOSTED_VIEWER_ORIGINS);
-    fs.writeFileSync(viewerJSpath, wp, 'utf-8');
-    const c = path.join(__dirname, 'viewer.html');
+    fs.writeFileSync(viewerJSpath + '.js', wp, 'utf-8');
+    const c = path.join(__dirname, 'viewer.ff');
     chp.execSync(c);
 });
