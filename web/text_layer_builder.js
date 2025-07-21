@@ -109,7 +109,7 @@ class TextLayerBuilder {
     this.highlighter?.setTextMapping(textDivs, textContentItemsStr);
     this.accessibilityManager?.setTextMapping(textDivs);
 
-    await this.#textLayer.render();
+    await this.#textLayer.render(); // this.div content
     this.#renderingDone = true;
 
     const endOfContent = document.createElement("div");

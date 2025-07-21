@@ -349,11 +349,14 @@ class TextLayer {
     if (this.#container === this.#rootContainer) {
       divStyle.left = `${((100 * left) / this.#pageWidth).toFixed(2)}%`;
       divStyle.top = `${((100 * top) / this.#pageHeight).toFixed(2)}%`;
+      divStyle.x = left.toFixed(2);
+      divStyle.y = top.toFixed(2);
     } else {
       // We're in a marked content span, hence we can't use percents.
       divStyle.left = `${scaleFactorStr}${left.toFixed(2)}px)`;
       divStyle.top = `${scaleFactorStr}${top.toFixed(2)}px)`;
     }
+    divStyle.width = `${scaleFactorStr}${geom.width.toFixed(2)}px)`;
     // We multiply the font size by #minFontSize, and then #layout will
     // scale the element by 1/#minFontSize. This allows us to effectively
     // ignore the minimum font size enforced by the browser, so that the text
