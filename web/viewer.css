@@ -1679,4 +1679,8 @@ dialog :link {
     display: none;
   }
 }
-input{padding:0px;border:1px solid #e0e0e0;}input:focus{background-color:red;}
+
+.textLayer > span{
+  border:1px gray dashed;
+  color:black;
+}
